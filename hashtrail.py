@@ -13,7 +13,12 @@ Usage       : python hashtrail.py [SHA256 ...]
 import re
 import requests
 import argparse
-from colorama import init, Fore, Style
+from dotenv import load_dotenv
+import os
+from colorama import init, Fore, Style, Back
+
+import malwarebazaar_search
+import filescanio_search
 
 init(autoreset=True)
 
@@ -22,7 +27,10 @@ ASCII_ART = r"""
  a'!   _,,_      / /  ___ ____ / /  / /________ _(_) / ___  __ __    
   \\_/    \     / _ \/ _ `(_-</ _ \/ __/ __/ _ `/ / / / _ \/ // /    
    \, /-( /'-, /_//_/\_,_/___/_//_/\__/_/  \_,_/_/_(_) .__/\_, /
-   //\ //\\                                         /_/   /___/         
+   //\ //\\                                         /_/   /___/        
+
+    Basic malware checker in Python
+    MenTa - 2025
 """
 
 # ----------------------------------------------------------------------
@@ -32,97 +40,74 @@ ASCII_ART = r"""
 def is_valid_sha256(hash_str):
     return bool(re.fullmatch(r"[a-fA-F0-9]{64}", hash_str))
 
-def print_info(info_dict):
-    for key, value in info_dict.items():
-        print(f"[+] {key.ljust(22)}: {value}")
+def print_header(header):
+    header_dict = {
+        1:" HASH ANALYSIS ",
+        2:" MALWARE BAZAAR RESEARCH ",
+        3:" FILESCAN.IO RESEARCH ",
+        4:" AI RESUME "
+    }
 
-# ----------------------------------------------------------------------
-# MalwareBazaar API
-# ----------------------------------------------------------------------
+    print(Back.WHITE + Fore.BLACK + header_dict[header].center(68) + Style.RESET_ALL + "\n")
 
-def search_malbazaar(hash256):
-    api_key = '[API]'
-    if not api_key:
-        print(f"{Fore.RED}[✗] MalwareBazaar API key missing")
-        return
-
-    url = "https://mb-api.abuse.ch/api/v1/"
-    headers = {'Auth-Key': api_key}
-    data = {"query": "get_info", "hash": hash256}
-
+def req_post(url, headers=None, data=None):
     try:
         response = requests.post(url, headers=headers, data=data)
-        response.raise_for_status()
-        print(f"[✓] MalwareBazaar HTTP Response : {Fore.GREEN}OK\n")
-        parse_malbazaar(response.json())
+        return response.json()
     except requests.RequestException as e:
-        print(f"{Fore.RED}[✗] MalwareBazaar API error : {e}")
+        print(f"{Fore.RED}[✗] HTTP error : {e}")
+        return None
 
-def parse_malbazaar(data):
-    status = data.get('query_status')
-    if status == "ok":
-        entry = data['data'][0]
-        tags = entry.get('tags', [])
-        info = {
-            "SHA256": entry.get('sha256_hash'),
-            "File Name": entry.get('file_name'),
-            "File Type": entry.get('file_type'),
-            "Signature": entry.get('signature'),
-            "Tags": ", ".join(tags),
-            "MalwareBazaar Link": f"https://bazaar.abuse.ch/sample/{entry.get('sha256_hash')}/"
-        }
-        print_info(info)
-    elif status == "unknown_auth_key":
-        print(f"{Fore.RED}[✗] Incorrect API key")
-    else:
-        print(f"{Fore.YELLOW}[!] Status of the request : {status}")
-
-# ----------------------------------------------------------------------
-# Filescan.io API
-# ----------------------------------------------------------------------
-
-def search_filescan(hash256):
-    url = f"https://www.filescan.io/api/reputation/hash?sha256={hash256}"
-
+def req_get(url, headers=None, data=None):
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        print(f"\n[✓] Filescan.io HTTP Response : {Fore.GREEN}OK\n")
-        parse_filescan(response.json())
+        response = requests.get(url, headers=headers, data=data)
+        return response.json()
     except requests.RequestException as e:
-        print(f"{Fore.RED}[✗] Filescan.io API error : {e}")
+        print(f"{Fore.RED}[✗] HTTP error : {e}")
+        return None
+    
+def print_info(info_dict):
+    for key, value in info_dict.items():
+        if value is None:
+            value = "N/A"
+        print(f"{Fore.LIGHTYELLOW_EX}{key:<25}{Style.RESET_ALL}: {Fore.WHITE}{value:<45}{Style.RESET_ALL}")
 
-def parse_filescan(data):
-    verdict = data.get('filescan_reports', [{}])[0].get('verdict', 'N/A')
-    verdict_color = Fore.GREEN if verdict == 'clean' else Fore.RED if verdict == 'malicious' else Fore.YELLOW
-    info = {
-        "Total AV Engines": data.get('mdcloud', {}).get('total_av_engines', 'N/A'),
-        "Detected AV Engines": data.get('mdcloud', {}).get('detected_av_engines', 'N/A'),
-        "Verdict": f"{verdict_color}{verdict}"
-    }
-    print_info(info)
+def print_verdict(verdict):
+    verdict_clean = verdict.lower()
+    if verdict_clean == "malicious":
+        print("\n" + Back.RED + Fore.WHITE + Style.BRIGHT + "VERDICT : MALICIOUS ".center(70) + Style.RESET_ALL)
+    elif verdict_clean == "no_threat":
+        print("\n" + Back.GREEN + Fore.BLACK  + "VERDICT : CLEAN ".center(70) + Style.RESET_ALL)
+    elif verdict_clean == "unknown":
+        print("\n" + Back.WHITE + Fore.BLACK  + "VERDICT : UNKNOWN ".center(70) + Style.RESET_ALL)
+    else:
+        print("\n" + Back.YELLOW + Fore.BLACK + f"VERDICT : {verdict.upper()} ".center(70) + Style.RESET_ALL)
+    print()
 
 # ----------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Search for SHA256 in MalwareBazaar and Filescan.io")
+    parser = argparse.ArgumentParser(description="Search for SHA256 in malware database")
     parser.add_argument("sha256", nargs="+", help="SHA256 hash(es) to search for")
     args = parser.parse_args()
-
+    
     print(ASCII_ART)
+    print_header(1)
 
     for hash256 in args.sha256:
-        print(f"{Style.BRIGHT}[+] Search for : {hash256}")
         if not is_valid_sha256(hash256):
             print(f"{Fore.RED}[✗] Invalid SHA256 hash : {hash256}\n")
-            continue
+        else:
+            print(f"[❯] Searching : {hash256}\n")
+    
+    print_header(2)
+    malwarebazaar_search.search_malbazaar(hash256)
 
-        search_malbazaar(hash256)
-        print("\n" + "-" * 70 + "\n")
-        search_filescan(hash256)
-        print("\n" + "=" * 70 + "\n")
+    print("\n")
+    print_header(3)
+    filescanio_search.search_filescan(hash256)
 
 if __name__ == "__main__":
     main()
