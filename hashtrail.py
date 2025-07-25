@@ -19,6 +19,7 @@ from colorama import init, Fore, Style, Back
 
 import malwarebazaar_search
 import filescanio_search
+import hausurl_search
 
 init(autoreset=True)
 
@@ -45,7 +46,8 @@ def print_header(header):
         1:" HASH ANALYSIS ",
         2:" MALWARE BAZAAR RESEARCH ",
         3:" FILESCAN.IO RESEARCH ",
-        4:" AI RESUME "
+        4:" AI RESUME ",
+        5:" URL ANALYSIS"
     }
 
     print(Back.WHITE + Fore.BLACK + header_dict[header].center(68) + Style.RESET_ALL + "\n")
@@ -90,24 +92,33 @@ def print_verdict(verdict):
 
 def main():
     parser = argparse.ArgumentParser(description="Search for SHA256 in malware database")
-    parser.add_argument("sha256", nargs="+", help="SHA256 hash(es) to search for")
+    parser.add_argument("--hash", nargs="+", help="SHA256 hash(es) to search for")
+    parser.add_argument('--url', help='URL searching in database')
     args = parser.parse_args()
     
     print(ASCII_ART)
-    print_header(1)
-
-    for hash256 in args.sha256:
-        if not is_valid_sha256(hash256):
-            print(f"{Fore.RED}[✗] Invalid SHA256 hash : {hash256}\n")
-        else:
-            print(f"[❯] Searching : {hash256}\n")
     
-    print_header(2)
-    malwarebazaar_search.search_malbazaar(hash256)
+    
+    if args.hash:
+        for hash256 in args.hash:
+            if not is_valid_sha256(hash256):
+                print(f"{Fore.RED}[✗] Invalid SHA256 hash : {hash256}\n")
+            else:
+                print_header(1)
+                print(f"[❯] Searching : {hash256}\n")
+    
+                print_header(2)
+                malwarebazaar_search.search_malbazaar(hash256)
 
-    print("\n")
-    print_header(3)
-    filescanio_search.search_filescan(hash256)
+                print("\n")
+                print_header(3)
+                filescanio_search.search_filescan(hash256)
+
+    if args.url:
+        url = args.url
+        print(f"[❯] Searching : {url}\n")
+        print_header(5)
+        hausurl_search.search_urlhaus(url)
 
 if __name__ == "__main__":
     main()
