@@ -20,6 +20,7 @@ from colorama import init, Fore, Style, Back
 import malwarebazaar_search
 import filescanio_search
 import hausurl_search
+import virustotal_search
 
 init(autoreset=True)
 
@@ -47,7 +48,8 @@ def print_header(header):
         2:" MALWARE BAZAAR RESEARCH ",
         3:" FILESCAN.IO RESEARCH ",
         4:" AI RESUME ",
-        5:" URL ANALYSIS"
+        5:" URL ANALYSIS",
+        6:" VIRUS TOTAL "
     }
 
     print(Back.WHITE + Fore.BLACK + header_dict[header].center(68) + Style.RESET_ALL + "\n")
@@ -91,13 +93,20 @@ def print_verdict(verdict):
 # ----------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Search for SHA256 in malware database")
-    parser.add_argument("--hash", nargs="+", help="SHA256 hash(es) to search for")
-    parser.add_argument('--url', help='URL searching in database')
+    parser = argparse.ArgumentParser(description="Search a hash or a URL in malware analysis databases.")
+    parser.add_argument("-H", "--hash",nargs="+",help="SHA256 hash(es) to search (space-separated if multiple)")
+    parser.add_argument("-u", "--url",help="Suspicious URL to search")
+    parser.add_argument("--malbazaar", action="store_true", help="Only query Malware Bazaar")
+    parser.add_argument("--filescan", action="store_true", help="Only query Filescan.io")
+    parser.add_argument("--vt", action="store_true", help="Only query VirusTotal")
+    parser.add_argument("--urlhaus", action="store_true", help="Only query URLHaus")
     args = parser.parse_args()
     
-    print(ASCII_ART)
+    if not any(vars(args).values()):
+        parser.print_help()
+        exit()
     
+    print(ASCII_ART)
     
     if args.hash:
         for hash256 in args.hash:
@@ -106,19 +115,62 @@ def main():
             else:
                 print_header(1)
                 print(f"[❯] Searching : {hash256}\n")
-    
-                print_header(2)
-                malwarebazaar_search.search_malbazaar(hash256)
 
-                print("\n")
-                print_header(3)
-                filescanio_search.search_filescan(hash256)
+                if args.malbazaar:
+                    print_header(2)
+                    malwarebazaar_search.search_malbazaar(hash256)
+                    print("\n")
+                
+                if args.filescan:
+                    print_header(3)
+                    filescanio_search.search_filescan(hash256)
+                    print("\n")
+                
+                if args.vt:
+                    print_header(6)
+                    virustotal_search.search_virustotal(hash256=hash256)
+                    print("\n")
+                
+                if args.urlhaus:
+                    print("Error : Not available in this mode")
+                
+                if not (args.malbazaar or args.filescan or args.vt or args.urlhaus):
+                    print_header(2)
+                    malwarebazaar_search.search_malbazaar(hash256)
+
+                    print("\n")
+                    print_header(3)
+                    filescanio_search.search_filescan(hash256)
+                    print("\n")
+
+                    print_header(6)
+                    virustotal_search.search_virustotal(hash256)
 
     if args.url:
-        url = args.url
-        print(f"[❯] Searching : {url}\n")
-        print_header(5)
-        hausurl_search.search_urlhaus(url)
+        mal_url = args.url
+        print(f"[❯] Searching : {mal_url}\n")
+
+        if args.urlhaus:
+            print_header(2)
+            hausurl_search.search_urlhaus(mal_url)
+            print("\n")
+
+        if args.malbazaar:
+            print("Error : Not available in this mode")
+                
+        if args.filescan:
+            print("Error : Not available in this mode")
+                
+        if args.vt:
+            print_header(6)
+            virustotal_search.search_virustotal(mal_url=mal_url)
+            print("\n")
+
+        if not (args.malbazaar or args.filescan or args.vt or args.urlhaus):
+            print_header(5)
+            hausurl_search.search_urlhaus(mal_url)
+            print_header(6)
+            virustotal_search.search_virustotal(mal_url=mal_url)
 
 if __name__ == "__main__":
     main()
