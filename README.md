@@ -10,12 +10,15 @@ It aggregates data from multiple malware analysis platforms into a single, clear
 - 🔒 **Hash Lookup**: Query malware hashes (SHA256) against:
   - [MalwareBazaar](https://bazaar.abuse.ch/)
   - [FileScan.io](https://www.filescan.io/)
+  - [VirusTotal](https://www.virustotal.com/)
 
 - 🌐 **URL Lookup**:
-  - Check suspicious URLs via [URLHaus](https://urlhaus.abuse.ch/)
+  - Check suspicious URLs via [URLHaus](https://urlhaus.abuse.ch/) and [VirusTotal](https://www.virustotal.com/)
 
 - 📄 **Compact Report**: Clean summary with tags, file info, AV detection stats, signatures, and links.
 
 - 🎨 **CLI Output**: Color-coded and readable output with fallback info when data is missing.
+
+- 🧹 **Filter sources**: Choose which platforms to query using command-line arguments.
 
 ---
